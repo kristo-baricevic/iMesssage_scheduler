@@ -40,7 +40,6 @@ class ScheduledMessageSerializer(serializers.ModelSerializer):
             "events",
         ]
 
-
 class ScheduledMessageCreateSerializer(serializers.ModelSerializer):
     class Meta:
         model = ScheduledMessage

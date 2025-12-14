@@ -3,6 +3,7 @@ import uuid
 from django.utils import timezone
 from rest_framework import status
 from rest_framework.test import APITestCase
+from datetime import timedelta
 
 from scheduler.models import DeliveryThrottle, MessageStatus, MessageStatusEvent, ScheduledMessage
 
@@ -11,19 +12,17 @@ class MessageApiTests(APITestCase):
     def setUp(self) -> None:
         DeliveryThrottle.objects.update_or_create(
             id=1,
-            defaults={"interval_seconds": 3600, "next_send_at": timezone.now() - timezone.timedelta(seconds=1)},
+            defaults={"interval_seconds": 3600, "next_send_at": timezone.now() - timedelta(seconds=1)},
         )
 
     def test_create_message_sets_queued_and_logs_event(self):
         payload = {
             "to_handle": "+15551230001",
             "body": "hello",
-            "scheduled_for": (timezone.now() + timezone.timedelta(minutes=5)).isoformat(),
+            "scheduled_for": (timezone.now() + timedelta(minutes=5)).isoformat(),
         }
 
         res = self.client.post("/api/messages/", payload, format="json")
-        print("STATUS=", res.status_code)
-        print("DATA=", res.data)
         self.assertEqual(res.status_code, status.HTTP_201_CREATED)
 
         msg_id = res.data["id"]
@@ -64,7 +63,7 @@ class GatewayApiTests(APITestCase):
     def setUp(self) -> None:
         DeliveryThrottle.objects.update_or_create(
             id=1,
-            defaults={"interval_seconds": 3600, "next_send_at": timezone.now() - timezone.timedelta(seconds=1)},
+            defaults={"interval_seconds": 3600, "next_send_at": timezone.now() - timedelta(seconds=1)},
         )
 
     def test_claim_requires_gateway_id(self):
@@ -79,7 +78,7 @@ class GatewayApiTests(APITestCase):
         ScheduledMessage.objects.create(
             to_handle="+15551230001",
             body="future",
-            scheduled_for=timezone.now() + timezone.timedelta(minutes=10),
+            scheduled_for=timezone.now() + timedelta(minutes=10),
             status=MessageStatus.QUEUED,
         )
 
@@ -92,13 +91,13 @@ class GatewayApiTests(APITestCase):
         m1 = ScheduledMessage.objects.create(
             to_handle="+15551230001",
             body="first",
-            scheduled_for=now - timezone.timedelta(minutes=1),
+            scheduled_for=now - timedelta(minutes=1),
             status=MessageStatus.QUEUED,
         )
         m2 = ScheduledMessage.objects.create(
             to_handle="+15551230002",
             body="second",
-            scheduled_for=now - timezone.timedelta(minutes=1),
+            scheduled_for=now - timedelta(minutes=1),
             status=MessageStatus.QUEUED,
         )
 
@@ -120,7 +119,7 @@ class GatewayApiTests(APITestCase):
         self.assertEqual(res2.status_code, status.HTTP_204_NO_CONTENT)
 
         # Move throttle back and claim next
-        DeliveryThrottle.objects.filter(id=1).update(next_send_at=timezone.now() - timezone.timedelta(seconds=1))
+        DeliveryThrottle.objects.filter(id=1).update(next_send_at=timezone.now() - timedelta(seconds=1))
         res3 = self.client.post("/api/gateway/claim/", {"gateway_id": "mac-1"}, format="json")
         self.assertEqual(res3.status_code, status.HTTP_200_OK)
         self.assertEqual(res3.data["id"], str(m2.id))
@@ -136,7 +135,7 @@ class GatewayApiTests(APITestCase):
         msg = ScheduledMessage.objects.create(
             to_handle="+15551230001",
             body="hi",
-            scheduled_for=timezone.now() - timezone.timedelta(minutes=1),
+            scheduled_for=timezone.now() - timedelta(minutes=1),
             status=MessageStatus.ACCEPTED,
         )
 
@@ -159,7 +158,7 @@ class GatewayApiTests(APITestCase):
         msg = ScheduledMessage.objects.create(
             to_handle="+15551230001",
             body="hi",
-            scheduled_for=timezone.now() - timezone.timedelta(minutes=1),
+            scheduled_for=timezone.now() - timedelta(minutes=1),
             status=MessageStatus.ACCEPTED,
         )
 
@@ -181,7 +180,7 @@ class GatewayApiTests(APITestCase):
         msg = ScheduledMessage.objects.create(
             to_handle="+15551230001",
             body="hi",
-            scheduled_for=timezone.now() - timezone.timedelta(minutes=1),
+            scheduled_for=timezone.now() - timedelta(minutes=1),
             status=MessageStatus.ACCEPTED,
         )
 

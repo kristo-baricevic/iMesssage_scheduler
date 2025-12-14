@@ -66,8 +66,13 @@ class MessageStatusEvent(models.Model):
 
 class DeliveryThrottle(models.Model):
     id = models.PositiveSmallIntegerField(primary_key=True, default=1, editable=False)
+
     next_send_at = models.DateTimeField(default=timezone.now)
     interval_seconds = models.PositiveIntegerField(default=3600)
+
+    max_attempts = models.PositiveSmallIntegerField(default=5)
+    retry_base_seconds = models.PositiveIntegerField(default=60)
+    retry_max_seconds = models.PositiveIntegerField(default=21600)  # 6 hours
 
     def save(self, *args, **kwargs):
         self.id = 1
@@ -79,4 +84,12 @@ class DeliveryThrottle(models.Model):
         return obj
 
     def __str__(self) -> str:
-        return f"Throttle(next_send_at={self.next_send_at}, interval_seconds={self.interval_seconds})"
+        return (
+            "Throttle("
+            f"next_send_at={self.next_send_at}, "
+            f"interval_seconds={self.interval_seconds}, "
+            f"max_attempts={self.max_attempts}, "
+            f"retry_base_seconds={self.retry_base_seconds}, "
+            f"retry_max_seconds={self.retry_max_seconds}"
+            ")"
+        )

@@ -1,5 +1,5 @@
-from django.shortcuts import render
-
+import logging
+from datetime import timedelta
 from typing import Any
 
 from django.utils import timezone
@@ -8,9 +8,18 @@ from rest_framework.decorators import action
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
-from .models import MessageStatus, MessageStatusEvent, ScheduledMessage
+from .models import DeliveryThrottle, MessageStatus, MessageStatusEvent, ScheduledMessage
 from .serializers import ScheduledMessageCreateSerializer, ScheduledMessageSerializer
 from .services import claim_next_message
+
+logger = logging.getLogger(__name__)
+
+
+def _retry_delay_seconds(*, attempt_count: int, base: int, max_delay: int) -> int:
+    if attempt_count <= 0:
+        return min(max_delay, base)
+    delay = base * (2 ** (attempt_count - 1))
+    return min(max_delay, delay)
 
 
 class ScheduledMessageViewSet(viewsets.ModelViewSet):
@@ -23,12 +32,13 @@ class ScheduledMessageViewSet(viewsets.ModelViewSet):
         return ScheduledMessageSerializer
 
     def create(self, request, *args, **kwargs):
-        create_serializer = self.get_serializer(data=request.data)
+        create_serializer = ScheduledMessageCreateSerializer(data=request.data, context=self.get_serializer_context())
         create_serializer.is_valid(raise_exception=True)
         msg = create_serializer.save()
 
-        out_serializer = ScheduledMessageSerializer(msg, context=self.get_serializer_context())
-        return Response(out_serializer.data, status=status.HTTP_201_CREATED)
+        out = ScheduledMessageSerializer(msg, context=self.get_serializer_context())
+        headers = self.get_success_headers(out.data)
+        return Response(out.data, status=status.HTTP_201_CREATED, headers=headers)
 
     def get_queryset(self):
         qs = super().get_queryset()
@@ -70,6 +80,11 @@ class ScheduledMessageViewSet(viewsets.ModelViewSet):
         )
 
         return Response(ScheduledMessageSerializer(msg).data, status=status.HTTP_200_OK)
+
+
+class HealthAPIView(APIView):
+    def get(self, request):
+        return Response({"ok": True, "time": timezone.now().isoformat()}, status=status.HTTP_200_OK)
 
 
 class GatewayClaimAPIView(APIView):
@@ -123,17 +138,78 @@ class GatewayReportAPIView(APIView):
         except ScheduledMessage.DoesNotExist:
             return Response({"detail": "message not found"}, status=status.HTTP_404_NOT_FOUND)
 
-        update_fields: list[str] = ["status", "updated_at"]
-        msg.status = new_status
+        now = timezone.now()
+        throttle = DeliveryThrottle.get_solo()
 
         if new_status == MessageStatus.FAILED:
             msg.attempt_count = (msg.attempt_count or 0) + 1
             msg.last_error = error or "unknown error"
-            update_fields += ["attempt_count", "last_error"]
-        else:
-            if msg.last_error:
-                msg.last_error = None
-                update_fields.append("last_error")
+
+            MessageStatusEvent.objects.create(
+                message=msg,
+                status=MessageStatus.FAILED,
+                detail={
+                    "reported_at": now.isoformat(),
+                    "error": msg.last_error,
+                    "detail": detail,
+                    "attempt_count": msg.attempt_count,
+                },
+            )
+
+            if msg.attempt_count < throttle.max_attempts:
+                delay_s = _retry_delay_seconds(
+                    attempt_count=msg.attempt_count,
+                    base=throttle.retry_base_seconds,
+                    max_delay=throttle.retry_max_seconds,
+                )
+                msg.status = MessageStatus.QUEUED
+                msg.scheduled_for = now + timedelta(seconds=delay_s)
+                msg.claimed_at = None
+                msg.claimed_by = None
+
+                msg.save(
+                    update_fields=[
+                        "status",
+                        "scheduled_for",
+                        "claimed_at",
+                        "claimed_by",
+                        "attempt_count",
+                        "last_error",
+                        "updated_at",
+                    ]
+                )
+
+                MessageStatusEvent.objects.create(
+                    message=msg,
+                    status=MessageStatus.QUEUED,
+                    detail={
+                        "source": "retry",
+                        "retry_in_seconds": delay_s,
+                        "scheduled_for": msg.scheduled_for.isoformat(),
+                        "attempt_count": msg.attempt_count,
+                    },
+                )
+
+                logger.info(
+                    "message requeued after failure",
+                    extra={"message_id": str(msg.id), "attempt_count": msg.attempt_count, "retry_in_seconds": delay_s},
+                )
+            else:
+                msg.status = MessageStatus.FAILED
+                msg.save(update_fields=["status", "attempt_count", "last_error", "updated_at"])
+                logger.info(
+                    "message failed permanently",
+                    extra={"message_id": str(msg.id), "attempt_count": msg.attempt_count},
+                )
+
+            return Response(ScheduledMessageSerializer(msg).data, status=status.HTTP_200_OK)
+
+        msg.status = new_status
+        update_fields: list[str] = ["status", "updated_at"]
+
+        if msg.last_error:
+            msg.last_error = None
+            update_fields.append("last_error")
 
         msg.save(update_fields=update_fields)
 
@@ -141,10 +217,12 @@ class GatewayReportAPIView(APIView):
             message=msg,
             status=new_status,
             detail={
-                "reported_at": timezone.now().isoformat(),
+                "reported_at": now.isoformat(),
                 "error": error,
                 "detail": detail,
             },
         )
+
+        logger.info("gateway reported status", extra={"message_id": str(msg.id), "status": new_status})
 
         return Response(ScheduledMessageSerializer(msg).data, status=status.HTTP_200_OK)
