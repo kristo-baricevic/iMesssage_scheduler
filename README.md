@@ -32,6 +32,14 @@ Navigate to the the infrastructure directory and run docker compose:
     cd infrastructure
     docker compose up -d --build
 
+On first startup, the backend container will automatically:
+
+    - Wait for Postgres to be ready
+
+    - Apply all Django migrations
+
+    - Optionally create an admin user if configured via environment variables
+
 Useful commands:
 
     docker compose ps
@@ -45,15 +53,21 @@ Health check:
 
 ---
 
-### Run Migrations
+### Database Migrations and Admin User
 
-First time setup:
+Migrations are applied automatically when the backend container starts. No manual action is required.
 
-    docker compose exec api python3 manage.py migrate
+Optional admin user creation can be disabled by removing the following environment variables on the api service in infrastructure/docker-compose.yml:
 
-Optional admin user:
+    CREATE_SUPERUSER=1
 
-    docker compose exec api python3 manage.py createsuperuser
+    DJANGO_SUPERUSER_USERNAME
+
+    DJANGO_SUPERUSER_EMAIL
+
+    DJANGO_SUPERUSER_PASSWORD
+
+If these variables are not set, no superuser is created.
 
 ---
 

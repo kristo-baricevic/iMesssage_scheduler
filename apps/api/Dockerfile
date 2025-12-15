@@ -14,6 +14,9 @@ RUN pip install --no-cache-dir -r /app/requirements.txt
 
 COPY . /app
 
+RUN chmod +x /app/entrypoint.sh
+
 ENV DJANGO_SETTINGS_MODULE=config.settings
 
+ENTRYPOINT ["/app/entrypoint.sh"]
 CMD ["python3", "manage.py", "runserver", "0.0.0.0:8000"]

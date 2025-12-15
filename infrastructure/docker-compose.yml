@@ -34,14 +34,21 @@ services:
       POSTGRES_DB: imessage
       POSTGRES_USER: imessage
       POSTGRES_PASSWORD: imessage
+      CREATE_SUPERUSER: "1"
+      DJANGO_SUPERUSER_USERNAME: admin
+      DJANGO_SUPERUSER_EMAIL: admin@example.com
+      DJANGO_SUPERUSER_PASSWORD: admin
     depends_on:
       - postgres
       - redis
     ports:
       - "8000:8000"
-    command: python manage.py runserver 0.0.0.0:8000
+    command: python3 manage.py runserver 0.0.0.0:8000
 
   worker:
+    build:
+      context: ../apps/api
+      dockerfile: Dockerfile
     image: imessage_scheduler-api:local
     container_name: imessage_worker
     environment:
@@ -59,8 +66,10 @@ services:
       - postgres
     command: celery -A config.celery:app worker -l info
 
-
   beat:
+    build:
+      context: ../apps/api
+      dockerfile: Dockerfile
     image: imessage_scheduler-api:local
     container_name: imessage_beat
     environment:

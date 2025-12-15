@@ -12,6 +12,8 @@ from .models import DeliveryThrottle, MessageStatus, MessageStatusEvent, Schedul
 from .serializers import ScheduledMessageCreateSerializer, ScheduledMessageSerializer, MessageStatusCountSerializer
 from .services import claim_next_message
 from django.db.models import Count
+from django.utils.decorators import method_decorator
+from django.views.decorators.csrf import csrf_exempt
 
 logger = logging.getLogger(__name__)
 
@@ -87,7 +89,7 @@ class HealthAPIView(APIView):
     def get(self, request):
         return Response({"ok": True, "time": timezone.now().isoformat()}, status=status.HTTP_200_OK)
 
-
+@method_decorator(csrf_exempt, name="dispatch")
 class GatewayClaimAPIView(APIView):
     def post(self, request):
         gateway_id = request.data.get("gateway_id")
@@ -108,7 +110,7 @@ class GatewayClaimAPIView(APIView):
             status=status.HTTP_200_OK,
         )
 
-
+@method_decorator(csrf_exempt, name="dispatch")
 class GatewayReportAPIView(APIView):
     def post(self, request):
         message_id = request.data.get("message_id")

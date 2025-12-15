@@ -258,7 +258,7 @@ export default function App() {
           </div>
         ) : null}
 
-        <div className="grid gap-4 xl:grid-cols-[1fr_1fr_420px]">
+        <div className="flex flex-col gap-4">
           <section className={card}>
             <form onSubmit={onCreate} className="space-y-2.5">
               <label className="block">
@@ -498,74 +498,77 @@ export default function App() {
               </div>
             )}
           </section>
+          {messages.length > 0 && (
+            <section className={card}>
+              <h2 className="mb-2.5 text-base font-semibold text-slate-800">
+                Selected Messages
+              </h2>
 
-          <section className={card}>
-            <h2 className="mb-2.5 text-base font-semibold text-slate-800">
-              Selected
-            </h2>
-
-            {!selected ? (
-              <div className="text-slate-500">
-                Click a message row to see details.
-              </div>
-            ) : (
-              <div>
-                <div className="mb-2.5 grid grid-cols-[80px_1fr] gap-2">
-                  <div className="text-xs text-slate-500">ID</div>
-                  <div className={mono}>{selected.id}</div>
+              {!selected ? (
+                <div className="text-slate-500">
+                  Click a message row to see details.
                 </div>
+              ) : (
+                <div>
+                  <div className="mb-2.5 grid grid-cols-[80px_1fr] gap-2">
+                    <div className="text-xs text-slate-500">ID</div>
+                    <div className={mono}>{selected.id}</div>
+                  </div>
 
-                <div className="mb-2.5 grid grid-cols-[80px_1fr] gap-2">
-                  <div className="text-xs text-slate-500">To</div>
-                  <div className="text-slate-800">{selected.to_handle}</div>
-                </div>
+                  <div className="mb-2.5 grid grid-cols-[80px_1fr] gap-2">
+                    <div className="text-xs text-slate-500">To</div>
+                    <div className="text-slate-800">{selected.to_handle}</div>
+                  </div>
 
-                <div className="mb-2.5 grid grid-cols-[80px_1fr] gap-2">
-                  <div className="text-xs text-slate-500">Status</div>
-                  <div className="text-slate-800">{selected.status}</div>
-                </div>
+                  <div className="mb-2.5 grid grid-cols-[80px_1fr] gap-2">
+                    <div className="text-xs text-slate-500">Status</div>
+                    <div className="text-slate-800">{selected.status}</div>
+                  </div>
 
-                <div className="mb-2.5 grid grid-cols-[80px_1fr] gap-2">
-                  <div className="text-xs text-slate-500">Body</div>
-                  <div className={mono}>{selected.body}</div>
-                </div>
+                  <div className="mb-2.5 grid grid-cols-[80px_1fr] gap-2">
+                    <div className="text-xs text-slate-500">Body</div>
+                    <div className={mono}>{selected.body}</div>
+                  </div>
 
-                <h3 className="mb-2 mt-3.5 text-sm font-semibold text-slate-800">
-                  Events
-                </h3>
+                  <h3 className="mb-2 mt-3.5 text-sm font-semibold text-slate-800">
+                    Events
+                  </h3>
 
-                <div className="flex flex-col gap-2.5">
-                  {selected.events?.length ? (
-                    selected.events.map((ev) => (
-                      <div
-                        key={ev.id}
-                        className="rounded-xl border border-slate-200 bg-white p-2.5"
-                      >
-                        <div className="mt-0 flex gap-2.5">
-                          <span className={pillClasses(ev.status)}>
-                            {ev.status}
-                          </span>
-                          <span className="font-mono text-xs text-slate-500">
-                            {ev.timestamp}
-                          </span>
+                  <div className="flex flex-col gap-2.5">
+                    {selected.events?.length ? (
+                      selected.events.map((ev) => (
+                        <div
+                          key={ev.id}
+                          className="rounded-xl border border-slate-200 bg-white p-2.5"
+                        >
+                          <div className="mt-0 flex gap-2.5">
+                            <span className={pillClasses(ev.status)}>
+                              {ev.status}
+                            </span>
+                            <span className="font-mono text-xs text-slate-500">
+                              {ev.timestamp}
+                            </span>
+                          </div>
+
+                          <pre className="mt-2 overflow-auto rounded-[10px] border border-slate-200 bg-slate-50 p-2.5 text-xs text-slate-800">
+                            {JSON.stringify(ev.detail, null, 2)}
+                          </pre>
                         </div>
-
-                        <pre className="mt-2 overflow-auto rounded-[10px] border border-slate-200 bg-slate-50 p-2.5 text-xs text-slate-800">
-                          {JSON.stringify(ev.detail, null, 2)}
-                        </pre>
-                      </div>
-                    ))
-                  ) : (
-                    <div className="text-slate-500">No events</div>
-                  )}
+                      ))
+                    ) : (
+                      <div className="text-slate-500">No events</div>
+                    )}
+                  </div>
                 </div>
-              </div>
-            )}
-          </section>
+              )}
+            </section>
+          )}
 
-          <section>
-            <MessagesByStatusChart data={data} />
-          </section>
+          {messages.length > 0 && (
+            <section>
+              <MessagesByStatusChart data={data} />
+            </section>
+          )}
         </div>
       </div>
     </div>
