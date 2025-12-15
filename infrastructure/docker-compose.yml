@@ -19,5 +19,51 @@ services:
     ports:
       - "6379:6379"
 
+  api:
+    build:
+      context: ../apps/api
+      dockerfile: Dockerfile
+    image: imessage_scheduler-api:local
+    container_name: imessage_api
+    environment:
+      DJANGO_SETTINGS_MODULE: config.settings
+      CELERY_BROKER_URL: redis://redis:6379/0
+      CELERY_RESULT_BACKEND: redis://redis:6379/0
+      DATABASE_URL: postgres://imessage:imessage@postgres:5432/imessage
+    depends_on:
+      - postgres
+      - redis
+    ports:
+      - "8000:8000"
+    command: python manage.py runserver 0.0.0.0:8000
+
+  worker:
+    image: imessage_scheduler-api:local
+    container_name: imessage_worker
+    environment:
+      DJANGO_SETTINGS_MODULE: config.settings
+      CELERY_BROKER_URL: redis://redis:6379/0
+      CELERY_RESULT_BACKEND: redis://redis:6379/0
+      DATABASE_URL: postgres://imessage:imessage@postgres:5432/imessage
+    depends_on:
+      - api
+      - redis
+      - postgres
+    command: celery -A config worker -l info
+
+  beat:
+    image: imessage_scheduler-api:local
+    container_name: imessage_beat
+    environment:
+      DJANGO_SETTINGS_MODULE: config.settings
+      CELERY_BROKER_URL: redis://redis:6379/0
+      CELERY_RESULT_BACKEND: redis://redis:6379/0
+      DATABASE_URL: postgres://imessage:imessage@postgres:5432/imessage
+    depends_on:
+      - api
+      - redis
+      - postgres
+    command: celery -A config beat -l info
+
 volumes:
   pgdata:
