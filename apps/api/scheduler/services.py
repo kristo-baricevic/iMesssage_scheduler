@@ -8,6 +8,7 @@ from django.db import transaction
 from django.utils import timezone
 from datetime import timedelta
 from django.conf import settings
+from .realtime import publish
 
 from .models import DeliveryThrottle, MessageStatus, MessageStatusEvent, ScheduledMessage
 
@@ -89,6 +90,7 @@ def claim_next_message(*, gateway_id: str) -> Optional[ClaimedMessage]:
     msg.claimed_at = now
     msg.claimed_by = gateway_id
     msg.save(update_fields=["status", "claimed_at", "claimed_by", "updated_at"])
+    publish({"type": "message_status", "id": str(msg.id), "status": msg.status})
 
     _log_status(msg, MessageStatus.ACCEPTED, {"gateway_id": gateway_id})
 

@@ -14,6 +14,14 @@ from .services import claim_next_message
 from django.db.models import Count
 from django.utils.decorators import method_decorator
 from django.views.decorators.csrf import csrf_exempt
+from .realtime import publish
+from .renderers import EventStreamRenderer
+
+import json
+import time
+import os
+from django.http import StreamingHttpResponse
+import redis
 
 logger = logging.getLogger(__name__)
 
@@ -38,6 +46,7 @@ class ScheduledMessageViewSet(viewsets.ModelViewSet):
         create_serializer = ScheduledMessageCreateSerializer(data=request.data, context=self.get_serializer_context())
         create_serializer.is_valid(raise_exception=True)
         msg = create_serializer.save()
+        publish({"type": "message_created", "id": str(msg.id), "status": msg.status})
 
         out = ScheduledMessageSerializer(msg, context=self.get_serializer_context())
         headers = self.get_success_headers(out.data)
@@ -75,6 +84,7 @@ class ScheduledMessageViewSet(viewsets.ModelViewSet):
 
         msg.status = MessageStatus.CANCELED
         msg.save(update_fields=["status", "updated_at"])
+        publish({"type": "message_status", "id": str(msg.id), "status": msg.status})
 
         MessageStatusEvent.objects.create(
             message=msg,
@@ -181,6 +191,7 @@ class GatewayReportAPIView(APIView):
                         "updated_at",
                     ]
                 )
+                publish({"type": "message_status", "id": str(msg.id), "status": msg.status})
 
                 MessageStatusEvent.objects.create(
                     message=msg,
@@ -200,6 +211,8 @@ class GatewayReportAPIView(APIView):
             else:
                 msg.status = MessageStatus.FAILED
                 msg.save(update_fields=["status", "attempt_count", "last_error", "updated_at"])
+                publish({"type": "message_status", "id": str(msg.id), "status": msg.status})
+
                 logger.info(
                     "message failed permanently",
                     extra={"message_id": str(msg.id), "attempt_count": msg.attempt_count},
@@ -215,6 +228,7 @@ class GatewayReportAPIView(APIView):
             update_fields.append("last_error")
 
         msg.save(update_fields=update_fields)
+        publish({"type": "message_status", "id": str(msg.id), "status": msg.status})
 
         MessageStatusEvent.objects.create(
             message=msg,
@@ -241,3 +255,29 @@ class MessageStatusStatsAPIView(APIView):
 
         serializer = MessageStatusCountSerializer(qs, many=True)
         return Response(serializer.data, status=status.HTTP_200_OK)
+
+def message_events_stream(request):
+    redis_url = os.environ.get("REDIS_URL", "redis://localhost:6379/0")
+    r = redis.Redis.from_url(redis_url, decode_responses=True)
+    pubsub = r.pubsub()
+    pubsub.subscribe("imessage_events")
+
+    def gen():
+        yield "event: ready\ndata: {}\n\n"
+        last_ping = time.time()
+
+        while True:
+            msg = pubsub.get_message(ignore_subscribe_messages=True, timeout=1.0)
+            now = time.time()
+
+            if msg and msg.get("type") == "message":
+                yield f"event: message\ndata: {msg['data']}\n\n"
+
+            if now - last_ping >= 15:
+                yield "event: ping\ndata: {}\n\n"
+                last_ping = now
+
+    resp = StreamingHttpResponse(gen(), content_type="text/event-stream")
+    resp["Cache-Control"] = "no-cache"
+    resp["X-Accel-Buffering"] = "no"
+    return resp

@@ -1,7 +1,7 @@
 from django.urls import include, path
 from rest_framework.routers import DefaultRouter
 
-from .views import GatewayClaimAPIView, GatewayReportAPIView, HealthAPIView, ScheduledMessageViewSet, MessageStatusStatsAPIView
+from .views import GatewayClaimAPIView, GatewayReportAPIView, HealthAPIView, ScheduledMessageViewSet, MessageStatusStatsAPIView, message_events_stream
 
 router = DefaultRouter()
 router.register(r"messages", ScheduledMessageViewSet, basename="messages")
@@ -12,4 +12,5 @@ urlpatterns = [
     path("gateway/claim/", GatewayClaimAPIView.as_view()),
     path("gateway/report/", GatewayReportAPIView.as_view()),
     path("stats/messages-by-status/", MessageStatusStatsAPIView.as_view()),
+    path("stream/messages/", message_events_stream),
 ]

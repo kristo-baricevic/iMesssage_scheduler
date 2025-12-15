@@ -3,6 +3,7 @@ from __future__ import annotations
 from celery import shared_task
 from django.db import transaction
 from django.utils import timezone
+from .realtime import publish
 
 from .models import (
     DeliveryThrottle,
@@ -47,6 +48,7 @@ def scheduler_tick(limit: int = 50):
         msg.status = MessageStatus.ACCEPTED
         msg.claimed_by = "gateway_pending"
         msg.save(update_fields=["status", "claimed_by", "updated_at"])
+        publish({"type": "message_status", "id": str(msg.id), "status": msg.status})
 
         MessageStatusEvent.objects.create(
             message=msg,

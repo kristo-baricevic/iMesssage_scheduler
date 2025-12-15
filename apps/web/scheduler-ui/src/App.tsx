@@ -122,6 +122,11 @@ export default function App() {
 
   const [data, setData] = useState([]);
 
+  async function refreshStats() {
+    const stats = await fetchMessageStatusStats();
+    setData(stats);
+  }
+
   useEffect(() => {
     fetchMessageStatusStats().then(setData);
   }, []);
@@ -156,6 +161,33 @@ export default function App() {
     }
   }
 
+  useEffect(() => {
+    const es = new EventSource("/api/stream/messages/");
+
+    const onAny = async () => {
+      await refresh();
+      await refreshStats();
+      if (selectedId) {
+        try {
+          const full = await getMessage(selectedId);
+          setSelected(full);
+        } catch {}
+      }
+    };
+
+    es.addEventListener("message", () => {
+      onAny();
+    });
+
+    es.onerror = (e) => {
+      console.log("SSE error", e);
+    };
+
+    return () => {
+      es.close();
+    };
+  }, [listParams, selectedId]);
+
   async function loadSelected(id: string) {
     setErr(null);
     setSelectedId(id);
@@ -174,6 +206,15 @@ export default function App() {
   async function onCreate(e: FormEvent) {
     e.preventDefault();
     setErr(null);
+    setBody("");
+    setPhoneNumber("");
+    setScheduledForLocal(() => {
+      const d = new Date(Date.now() + 60_000);
+      const pad = (n: number) => String(n).padStart(2, "0");
+      return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(
+        d.getDate()
+      )}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+    });
 
     const iso = toIsoFromDatetimeLocal(scheduledForLocal);
     if (!iso) {
@@ -448,48 +489,52 @@ export default function App() {
                           : "hover:bg-slate-50",
                       ].join(" ")}
                     >
-                      <div className="flex flex-col gap-3 min-h-27.5">
+                      <div className="flex flex-col gap-3 h-full">
                         <div className="flex items-start justify-between gap-3">
-                          <div className="flex items-start gap-2">
+                          <div className="flex items-start gap-2 w-full">
                             <div className="bg-blue-100 text-blue-500 p-1 rounded-md">
                               <IconPhone />
                             </div>
 
-                            <div className="min-w-0">
-                              <div className="text-sm font-semibold text-slate-900">
-                                {formatUSPhone(m.to_handle)}
+                            <div className="min-w-0 flex flex-col flex-1">
+                              <div className="flex flex-row w-full justify-between">
+                                <div className="flex text-sm font-semibold text-slate-900">
+                                  {formatUSPhone(m.to_handle)}
+                                </div>
+                                <div className={pillClasses(m.status)}>
+                                  {m.status}
+                                </div>
                               </div>
 
                               <div className="mt-2 flex flex-col gap-2 text-xs text-slate-700">
                                 <div className={mono}>{m.body}</div>
-
+                              </div>
+                              <div className="mt-auto flex items-end justify-between gap-3 pt-2">
                                 <div className="flex items-center font-mono text-xs text-slate-400">
                                   <IconClock className="mr-2" />
                                   {formatDate(m.scheduled_for)}
                                 </div>
+
+                                <button
+                                  className={[
+                                    "rounded-xl border px-3 py-2 text-xs",
+                                    "border-slate-300 bg-white text-slate-900",
+                                    loading
+                                      ? "opacity-60 cursor-not-allowed"
+                                      : "hover:bg-slate-100 cursor-pointer",
+                                  ].join(" ")}
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    onCancel(m.id);
+                                  }}
+                                  disabled={loading}
+                                  type="button"
+                                >
+                                  Cancel
+                                </button>
                               </div>
                             </div>
                           </div>
-                        </div>
-
-                        <div className="mt-auto flex justify-end">
-                          <button
-                            className={[
-                              "rounded-xl border px-3 py-2 text-xs",
-                              "border-slate-300 bg-white text-slate-900",
-                              loading
-                                ? "opacity-60 cursor-not-allowed"
-                                : "hover:bg-slate-100 cursor-pointer",
-                            ].join(" ")}
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              onCancel(m.id);
-                            }}
-                            disabled={loading}
-                            type="button"
-                          >
-                            Cancel
-                          </button>
                         </div>
                       </div>
                     </div>
@@ -545,8 +590,8 @@ export default function App() {
                             <span className={pillClasses(ev.status)}>
                               {ev.status}
                             </span>
-                            <span className="font-mono text-xs text-slate-500">
-                              {ev.timestamp}
+                            <span className="font-mono text-xs text-slate-500 mt-1">
+                              {formatDate(ev.timestamp)}
                             </span>
                           </div>
 
