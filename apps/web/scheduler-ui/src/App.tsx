@@ -284,13 +284,13 @@ export default function App() {
             </div>
           </div>
 
-          <button
+          {/* <button
             className={btnBase(loading)}
             onClick={refresh}
             disabled={loading}
           >
             {loading ? "Loading..." : "Refresh"}
-          </button>
+          </button> */}
         </header>
 
         {err ? (
@@ -506,7 +506,7 @@ export default function App() {
                                 </div>
                               </div>
 
-                              <div className="mt-2 flex flex-col gap-2 text-xs text-slate-700">
+                              <div className="mt-2 flex flex-col gap-2 text-xs text-slate-700 max-w-[90%]">
                                 <div className={mono}>{m.body}</div>
                               </div>
                               <div className="mt-auto flex items-end justify-between gap-3 pt-2">
