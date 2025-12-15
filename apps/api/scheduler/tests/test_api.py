@@ -196,10 +196,40 @@ class GatewayApiTests(APITestCase):
         self.assertEqual(res.status_code, status.HTTP_200_OK)
 
         msg.refresh_from_db()
-        self.assertEqual(msg.status, MessageStatus.FAILED)
+        self.assertEqual(msg.status, MessageStatus.QUEUED)
         self.assertEqual(msg.attempt_count, 1)
         self.assertEqual(msg.last_error, "osascript failed")
 
         self.assertTrue(
             MessageStatusEvent.objects.filter(message=msg, status=MessageStatus.FAILED).exists()
         )
+
+    def test_report_failed_marks_failed_when_max_attempts_reached(self):
+        throttle = DeliveryThrottle.get_solo()
+        throttle.max_attempts = 1
+        throttle.save(update_fields=["max_attempts"])
+
+        msg = ScheduledMessage.objects.create(
+            to_handle="+15551230001",
+            body="hi",
+            scheduled_for=timezone.now(),
+            status=MessageStatus.ACCEPTED,
+            attempt_count=0,
+        )
+
+        res = self.client.post(
+            "/api/gateway/report/",
+            data={
+                "message_id": str(msg.id),
+                "status": "FAILED",
+                "error": "boom",
+                "detail": {"gateway_id": "mac-1"},
+            },
+            content_type="application/json",
+        )
+        self.assertEqual(res.status_code, 200)
+
+        msg.refresh_from_db()
+        self.assertEqual(msg.status, MessageStatus.FAILED)
+        self.assertEqual(msg.last_error, "boom")
+        self.assertEqual(msg.attempt_count, 1)
