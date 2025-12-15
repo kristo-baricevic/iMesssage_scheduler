@@ -56,3 +56,7 @@ class ScheduledMessageCreateSerializer(serializers.ModelSerializer):
             detail={"source": "api"},
         )
         return msg
+
+class MessageStatusCountSerializer(serializers.Serializer):
+    status = serializers.CharField()
+    count = serializers.IntegerField()

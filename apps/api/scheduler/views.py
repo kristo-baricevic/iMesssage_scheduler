@@ -9,8 +9,9 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from .models import DeliveryThrottle, MessageStatus, MessageStatusEvent, ScheduledMessage
-from .serializers import ScheduledMessageCreateSerializer, ScheduledMessageSerializer
+from .serializers import ScheduledMessageCreateSerializer, ScheduledMessageSerializer, MessageStatusCountSerializer
 from .services import claim_next_message
+from django.db.models import Count
 
 logger = logging.getLogger(__name__)
 
@@ -226,3 +227,15 @@ class GatewayReportAPIView(APIView):
         logger.info("gateway reported status", extra={"message_id": str(msg.id), "status": new_status})
 
         return Response(ScheduledMessageSerializer(msg).data, status=status.HTTP_200_OK)
+
+class MessageStatusStatsAPIView(APIView):
+    def get(self, request):
+        qs = (
+            ScheduledMessage.objects
+            .values("status")
+            .annotate(count=Count("id"))
+            .order_by("status")
+        )
+
+        serializer = MessageStatusCountSerializer(qs, many=True)
+        return Response(serializer.data, status=status.HTTP_200_OK)

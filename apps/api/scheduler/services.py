@@ -33,6 +33,36 @@ def _log_status(message: ScheduledMessage, status: str, detail: Optional[dict] =
 def claim_next_message(*, gateway_id: str) -> Optional[ClaimedMessage]:
     now = timezone.now()
 
+    # 1) First: claim messages already prepared by Celery (ACCEPTED + gateway_pending)
+    msg = (
+        ScheduledMessage.objects.select_for_update(skip_locked=True)
+        .filter(
+            status=MessageStatus.ACCEPTED,
+            claimed_by="gateway_pending",
+            claimed_at__isnull=True,
+            scheduled_for__lte=now,
+        )
+        .order_by("scheduled_for", "created_at", "id")
+        .first()
+    )
+
+    if msg:
+        msg.claimed_at = now
+        msg.claimed_by = gateway_id
+        msg.save(update_fields=["claimed_at", "claimed_by", "updated_at"])
+
+        _log_status(msg, MessageStatus.ACCEPTED, {"gateway_id": gateway_id, "source": "gateway_claim"})
+
+        logger.info("claim success", extra={"gateway_id": gateway_id, "message_id": str(msg.id)})
+
+        return ClaimedMessage(
+            id=str(msg.id),
+            to_handle=msg.to_handle,
+            body=msg.body,
+            scheduled_for=msg.scheduled_for.isoformat(),
+        )
+
+    # 2) Fallback: old path (directly claiming QUEUED)
     throttle = DeliveryThrottle.objects.select_for_update().get_or_create(id=1)[0]
     if now < throttle.next_send_at:
         logger.info(

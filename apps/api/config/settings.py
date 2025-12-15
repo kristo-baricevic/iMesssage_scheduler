@@ -84,17 +84,33 @@ WSGI_APPLICATION = 'config.wsgi.application'
 # Database
 # https://docs.djangoproject.com/en/5.2/ref/settings/#databases
 
-DATABASES = {
-    "default": {
-        "ENGINE": "django.db.backends.postgresql",
-        "NAME": os.environ.get("POSTGRES_DB", "imessage"),
-        "USER": os.environ.get("POSTGRES_USER", "imessage"),
-        "PASSWORD": os.environ.get("POSTGRES_PASSWORD", "imessage"),
-        "HOST": os.environ.get("POSTGRES_HOST", "localhost"),
-        "PORT": os.environ.get("POSTGRES_PORT", "5432"),
-    }
-}
+from urllib.parse import urlparse
 
+DATABASE_URL = os.environ.get("DATABASE_URL")
+
+if DATABASE_URL:
+    u = urlparse(DATABASE_URL)
+    DATABASES = {
+        "default": {
+            "ENGINE": "django.db.backends.postgresql",
+            "NAME": (u.path or "").lstrip("/"),
+            "USER": u.username or "",
+            "PASSWORD": u.password or "",
+            "HOST": u.hostname or "",
+            "PORT": str(u.port or 5432),
+        }
+    }
+else:
+    DATABASES = {
+        "default": {
+            "ENGINE": "django.db.backends.postgresql",
+            "NAME": os.environ.get("POSTGRES_DB", "imessage"),
+            "USER": os.environ.get("POSTGRES_USER", "imessage"),
+            "PASSWORD": os.environ.get("POSTGRES_PASSWORD", "imessage"),
+            "HOST": os.environ.get("POSTGRES_HOST", "localhost"),
+            "PORT": os.environ.get("POSTGRES_PORT", "5432"),
+        }
+    }
 
 
 # Password validation

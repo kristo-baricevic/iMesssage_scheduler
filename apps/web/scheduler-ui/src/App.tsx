@@ -1,7 +1,19 @@
 import { useEffect, useMemo, useState, type FormEvent } from "react";
-import { cancelMessage, createMessage, getMessage, listMessages } from "./api";
+import {
+  cancelMessage,
+  createMessage,
+  fetchMessageStatusStats,
+  getMessage,
+  listMessages,
+} from "./api";
 import type { ScheduledMessage, MessageStatus } from "./api";
-import { IconSend, IconPhone, IconClock } from "@tabler/icons-react";
+import {
+  IconSend,
+  IconPhone,
+  IconClock,
+  IconChevronDown,
+} from "@tabler/icons-react";
+import { MessagesByStatusChart } from "./components/MessagesByStatusChart";
 
 const STATUSES: (MessageStatus | "")[] = [
   "",
@@ -54,23 +66,23 @@ function formatDate(iso: string) {
 
 function pillClasses(status: string) {
   const base =
-    "inline-block rounded-full border bg-[#0b1220] px-2 py-[3px] text-xs";
+    "inline-block rounded-full border bg-white px-2 py-[3px] text-xs text-slate-800";
 
   switch (status) {
     case "QUEUED":
-      return `${base} border-slate-600`;
+      return `${base} border-slate-400`;
     case "ACCEPTED":
       return `${base} border-sky-600`;
     case "SENT":
     case "DELIVERED":
     case "RECEIVED":
-      return `${base} border-green-500`;
+      return `${base} border-green-600`;
     case "FAILED":
-      return `${base} border-red-500`;
+      return `${base} border-red-600`;
     case "CANCELED":
-      return `${base} border-orange-500`;
+      return `${base} border-orange-600`;
     default:
-      return `${base} border-slate-700`;
+      return `${base} border-slate-300`;
   }
 }
 
@@ -96,6 +108,8 @@ export default function App() {
   const [filterFrom, setFilterFrom] = useState<string>("");
   const [filterTo, setFilterTo] = useState<string>("");
 
+  const [filtersOpen, setFiltersOpen] = useState(false);
+
   const [phoneNumber, setPhoneNumber] = useState<string>("");
   const [body, setBody] = useState<string>("");
   const [scheduledForLocal, setScheduledForLocal] = useState(() => {
@@ -105,6 +119,12 @@ export default function App() {
       d.getDate()
     )}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
   });
+
+  const [data, setData] = useState([]);
+
+  useEffect(() => {
+    fetchMessageStatusStats().then(setData);
+  }, []);
 
   const listParams = useMemo(
     () => ({
@@ -201,6 +221,15 @@ export default function App() {
     "rounded-xl border border-slate-200 bg-slate-100 text-slate-800 p-3.5 shadow-xl";
   const mono = "font-mono text-xs text-slate-800";
 
+  const lightBtn = (disabled: boolean) =>
+    [
+      "rounded-xl border px-3 py-2 text-xs",
+      "border-slate-300 bg-white text-slate-900",
+      disabled
+        ? "opacity-60 cursor-not-allowed"
+        : "hover:bg-slate-100 cursor-pointer",
+    ].join(" ");
+
   return (
     <div className="min-h-screen bg-blue-100 text-slate-200">
       <div className="mx-auto max-w-300 p-6 font-sans">
@@ -290,82 +319,107 @@ export default function App() {
             </form>
           </section>
 
-          {/* <section className={card}>
-            <h2 className="mb-2.5 text-slate-800 font-semibold">Filters</h2>
-
-            <div className="space-y-2.5">
-              <label className="block">
-                <span className={labelSpan}>Status</span>
-                <select
-                  className={inputBase}
-                  value={filterStatus}
-                  onChange={(e) => setFilterStatus(e.target.value)}
-                >
-                  {STATUSES.map((s) => (
-                    <option key={s || "any"} value={s}>
-                      {s || "(any)"}
-                    </option>
-                  ))}
-                </select>
-              </label>
-
-              <label className="block">
-                <span className={labelSpan}>To handle contains</span>
-                <input
-                  className={inputBase}
-                  value={filterPhoneNumber}
-                  onChange={(e) => setFilterPhoneNumber(e.target.value)}
-                  placeholder="+1555"
-                />
-              </label>
-
-              <label className="block">
-                <span className={labelSpan}>Scheduled from (ISO UTC)</span>
-                <input
-                  className={inputBase}
-                  value={filterFrom}
-                  onChange={(e) => setFilterFrom(e.target.value)}
-                  placeholder="2025-12-14T00:00:00Z"
-                />
-              </label>
-
-              <label className="block">
-                <span className={labelSpan}>Scheduled to (ISO UTC)</span>
-                <input
-                  className={inputBase}
-                  value={filterTo}
-                  onChange={(e) => setFilterTo(e.target.value)}
-                  placeholder="2025-12-15T00:00:00Z"
-                />
-              </label>
+          <div
+            className="rounded-xl border border-slate-200 bg-slate-100 text-slate-800 p-3.5 shadow-xl cursor-pointer"
+            onClick={() => setFiltersOpen((v) => !v)}
+            role="button"
+            aria-expanded={filtersOpen}
+          >
+            <div className="flex flex-row justify-between">
+              <h2 className="text-slate-800 font-semibold">Filters</h2>
+              <IconChevronDown
+                className={[
+                  "text-slate-600 transition-transform",
+                  filtersOpen ? "rotate-180" : "",
+                ].join(" ")}
+              />
             </div>
 
-            <div className="mt-2.5 flex gap-2.5">
-              <button
-                className={btnBase(loading)}
-                onClick={refresh}
-                disabled={loading}
-                type="button"
+            {filtersOpen ? (
+              <div
+                id="filters-panel"
+                className="mt-2"
+                onClick={(e) => e.stopPropagation()}
               >
-                Apply
-              </button>
+                <div className="space-y-2.5">
+                  <label className="block">
+                    <span className={labelSpan}>Status</span>
+                    <select
+                      className={inputBase}
+                      value={filterStatus}
+                      onChange={(e) => setFilterStatus(e.target.value)}
+                    >
+                      {STATUSES.map((s) => (
+                        <option key={s || "any"} value={s}>
+                          {s || "(any)"}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
 
-              <button
-                className={btnBase(loading)}
-                onClick={() => {
-                  setFilterStatus("");
-                  setFilterPhoneNumber("");
-                  setFilterFrom("");
-                  setFilterTo("");
-                  setTimeout(refresh, 0);
-                }}
-                disabled={loading}
-                type="button"
-              >
-                Clear
-              </button>
-            </div>
-          </section> */}
+                  <label className="block">
+                    <span className={labelSpan}>To handle contains</span>
+                    <input
+                      className={inputBase}
+                      value={filterPhoneNumber}
+                      onChange={(e) => setFilterPhoneNumber(e.target.value)}
+                      placeholder="+1555"
+                    />
+                  </label>
+
+                  <label className="block">
+                    <span className={labelSpan}>Scheduled from (ISO UTC)</span>
+                    <input
+                      className={inputBase}
+                      value={filterFrom}
+                      onChange={(e) => setFilterFrom(e.target.value)}
+                      placeholder="2025-12-14T00:00:00Z"
+                    />
+                  </label>
+
+                  <label className="block">
+                    <span className={labelSpan}>Scheduled to (ISO UTC)</span>
+                    <input
+                      className={inputBase}
+                      value={filterTo}
+                      onChange={(e) => setFilterTo(e.target.value)}
+                      placeholder="2025-12-15T00:00:00Z"
+                    />
+                  </label>
+                </div>
+
+                <div className="mt-2.5 flex gap-2.5">
+                  <button
+                    className={lightBtn(loading)}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      refresh();
+                    }}
+                    disabled={loading}
+                    type="button"
+                  >
+                    Apply
+                  </button>
+
+                  <button
+                    className={lightBtn(loading)}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setFilterStatus("");
+                      setFilterPhoneNumber("");
+                      setFilterFrom("");
+                      setFilterTo("");
+                      setTimeout(refresh, 0);
+                    }}
+                    disabled={loading}
+                    type="button"
+                  >
+                    Clear
+                  </button>
+                </div>
+              </div>
+            ) : null}
+          </div>
 
           <section className="xl:col-span-2">
             <div className="flex flex-row items-center justify-between">
@@ -445,36 +499,38 @@ export default function App() {
             )}
           </section>
 
-          {/* <section className={card}>
-            <h2 className="mb-2.5 text-base font-semibold">Selected</h2>
+          <section className={card}>
+            <h2 className="mb-2.5 text-base font-semibold text-slate-800">
+              Selected
+            </h2>
 
             {!selected ? (
-              <div className="text-slate-400">
+              <div className="text-slate-500">
                 Click a message row to see details.
               </div>
             ) : (
               <div>
                 <div className="mb-2.5 grid grid-cols-[80px_1fr] gap-2">
-                  <div className="text-xs text-slate-400">ID</div>
+                  <div className="text-xs text-slate-500">ID</div>
                   <div className={mono}>{selected.id}</div>
                 </div>
 
                 <div className="mb-2.5 grid grid-cols-[80px_1fr] gap-2">
-                  <div className="text-xs text-slate-400">To</div>
-                  <div>{selected.to_handle}</div>
+                  <div className="text-xs text-slate-500">To</div>
+                  <div className="text-slate-800">{selected.to_handle}</div>
                 </div>
 
                 <div className="mb-2.5 grid grid-cols-[80px_1fr] gap-2">
-                  <div className="text-xs text-slate-400">Status</div>
-                  <div>{selected.status}</div>
+                  <div className="text-xs text-slate-500">Status</div>
+                  <div className="text-slate-800">{selected.status}</div>
                 </div>
 
                 <div className="mb-2.5 grid grid-cols-[80px_1fr] gap-2">
-                  <div className="text-xs text-slate-400">Body</div>
+                  <div className="text-xs text-slate-500">Body</div>
                   <div className={mono}>{selected.body}</div>
                 </div>
 
-                <h3 className="mb-2 mt-3.5 text-sm font-semibold text-slate-200">
+                <h3 className="mb-2 mt-3.5 text-sm font-semibold text-slate-800">
                   Events
                 </h3>
 
@@ -483,29 +539,33 @@ export default function App() {
                     selected.events.map((ev) => (
                       <div
                         key={ev.id}
-                        className="rounded-xl border border-slate-800 bg-slate-950 p-2.5"
+                        className="rounded-xl border border-slate-200 bg-white p-2.5"
                       >
                         <div className="mt-0 flex gap-2.5">
                           <span className={pillClasses(ev.status)}>
                             {ev.status}
                           </span>
-                          <span className="font-mono text-xs text-slate-400">
+                          <span className="font-mono text-xs text-slate-500">
                             {ev.timestamp}
                           </span>
                         </div>
 
-                        <pre className="mt-2 overflow-auto rounded-[10px] border border-slate-800 bg-[#0b1220] p-2.5 text-xs">
+                        <pre className="mt-2 overflow-auto rounded-[10px] border border-slate-200 bg-slate-50 p-2.5 text-xs text-slate-800">
                           {JSON.stringify(ev.detail, null, 2)}
                         </pre>
                       </div>
                     ))
                   ) : (
-                    <div className="text-slate-400">No events</div>
+                    <div className="text-slate-500">No events</div>
                   )}
                 </div>
               </div>
             )}
-          </section> */}
+          </section>
+
+          <section>
+            <MessagesByStatusChart data={data} />
+          </section>
         </div>
       </div>
     </div>

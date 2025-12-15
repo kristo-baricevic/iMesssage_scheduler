@@ -29,7 +29,11 @@ services:
       DJANGO_SETTINGS_MODULE: config.settings
       CELERY_BROKER_URL: redis://redis:6379/0
       CELERY_RESULT_BACKEND: redis://redis:6379/0
-      DATABASE_URL: postgres://imessage:imessage@postgres:5432/imessage
+      POSTGRES_HOST: postgres
+      POSTGRES_PORT: 5432
+      POSTGRES_DB: imessage
+      POSTGRES_USER: imessage
+      POSTGRES_PASSWORD: imessage
     depends_on:
       - postgres
       - redis
@@ -44,12 +48,17 @@ services:
       DJANGO_SETTINGS_MODULE: config.settings
       CELERY_BROKER_URL: redis://redis:6379/0
       CELERY_RESULT_BACKEND: redis://redis:6379/0
-      DATABASE_URL: postgres://imessage:imessage@postgres:5432/imessage
+      POSTGRES_HOST: postgres
+      POSTGRES_PORT: 5432
+      POSTGRES_DB: imessage
+      POSTGRES_USER: imessage
+      POSTGRES_PASSWORD: imessage
     depends_on:
       - api
       - redis
       - postgres
-    command: celery -A config worker -l info
+    command: celery -A config.celery:app worker -l info
+
 
   beat:
     image: imessage_scheduler-api:local
@@ -58,12 +67,16 @@ services:
       DJANGO_SETTINGS_MODULE: config.settings
       CELERY_BROKER_URL: redis://redis:6379/0
       CELERY_RESULT_BACKEND: redis://redis:6379/0
-      DATABASE_URL: postgres://imessage:imessage@postgres:5432/imessage
+      POSTGRES_HOST: postgres
+      POSTGRES_PORT: 5432
+      POSTGRES_DB: imessage
+      POSTGRES_USER: imessage
+      POSTGRES_PASSWORD: imessage
     depends_on:
       - api
       - redis
       - postgres
-    command: celery -A config beat -l info
+    command: celery -A config.celery:app beat -l info
 
 volumes:
   pgdata:

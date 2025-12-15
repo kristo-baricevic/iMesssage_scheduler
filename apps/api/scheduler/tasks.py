@@ -45,15 +45,15 @@ def scheduler_tick(limit: int = 50):
             return {"skipped": True, "reason": "no_due_messages"}
 
         msg.status = MessageStatus.ACCEPTED
-        msg.claimed_at = now
         msg.claimed_by = "gateway_pending"
-        msg.save(update_fields=["status", "claimed_at", "claimed_by", "updated_at"])
+        msg.save(update_fields=["status", "claimed_by", "updated_at"])
 
         MessageStatusEvent.objects.create(
             message=msg,
             status=MessageStatus.ACCEPTED,
             detail={"claimed_by": msg.claimed_by},
         )
+
 
         throttle.next_send_at = now + timezone.timedelta(seconds=throttle.interval_seconds)
         throttle.save(update_fields=["next_send_at"])

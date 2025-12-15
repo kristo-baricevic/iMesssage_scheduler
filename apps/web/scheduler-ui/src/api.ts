@@ -84,3 +84,10 @@ export async function cancelMessage(id: string): Promise<ScheduledMessage> {
   if (!res.ok) throw new Error(`Cancel failed: ${res.status} ${await readJsonOrText(res)}`);
   return res.json();
 }
+
+export async function fetchMessageStatusStats() {
+    const res = await fetch("/api/stats/messages-by-status/");
+    if (!res.ok) throw new Error("Failed to load stats");
+    return res.json();
+  }
+  
