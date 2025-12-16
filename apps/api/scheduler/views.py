@@ -15,7 +15,6 @@ from django.db.models import Count
 from django.utils.decorators import method_decorator
 from django.views.decorators.csrf import csrf_exempt
 from .realtime import publish
-from .renderers import EventStreamRenderer
 
 import json
 import time
