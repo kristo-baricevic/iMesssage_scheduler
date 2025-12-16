@@ -67,13 +67,13 @@ Optional admin user creation can be disabled by removing the following environme
 
     DJANGO_SUPERUSER_PASSWORD
 
-If these variables are not set, no superuser is created.
+If these variables are not set, no superuser is created. These variables can also be adjusted by changing their values in the docker compose file.
 
 ---
 
 ### Start Frontend
 
-Navigate to the frontend directory:
+Open a new terminal window and navigate to the frontend directory:
 
     cd apps/web/scheduler-ui
 
@@ -86,13 +86,13 @@ Vite proxies /api to the Django backend so the browser can call the API without 
 
 ### Start Gateway (macOS)
 
-The gateway runs on your Mac, so you must install its Python dependencies locally (virtualenv recommended). Navigate to the source folder, create and activate the venv, and then install requirements.txt. Then, you will be able to launch the gateway.
+The gateway runs on your Mac, so you must install its Python dependencies locally (virtualenv recommended). Open a third terminal window, navigate to the source folder, create and activate the venv, and then install requirements.txt. Then, you will be able to launch the gateway.
 
     cd apps/gateway
     python3 -m venv .venv
     source .venv/bin/activate
     pip install -r requirements.txt
-    python3 gateway.py
+    python3 gateway_agent.py
 
 (Depending on your version of python, your python script may be simply python instead of python3.)
 
