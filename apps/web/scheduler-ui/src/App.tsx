@@ -15,6 +15,13 @@ import {
 } from "@tabler/icons-react";
 import { MessagesByStatusChart } from "./components/MessagesByStatusChart";
 
+type ListParams = {
+  status?: string;
+  to_handle?: string;
+  scheduled_from?: string;
+  scheduled_to?: string;
+};
+
 const STATUSES: (MessageStatus | "")[] = [
   "",
   "QUEUED",
@@ -86,15 +93,6 @@ function pillClasses(status: string) {
   }
 }
 
-function btnBase(disabled: boolean) {
-  return [
-    "rounded-xl border px-3 py-2 text-slate-200",
-    "bg-slate-900 border-slate-700",
-    "cursor-pointer",
-    disabled ? "opacity-60 cursor-not-allowed" : "hover:bg-slate-800",
-  ].join(" ");
-}
-
 export default function App() {
   const [loading, setLoading] = useState(false);
   const [err, setErr] = useState<string | null>(null);
@@ -141,11 +139,11 @@ export default function App() {
     [filterStatus, filterPhoneNumber, filterFrom, filterTo]
   );
 
-  async function refresh() {
+  async function refresh(paramsOverride?: ListParams) {
     setErr(null);
     setLoading(true);
     try {
-      const data = await listMessages(listParams);
+      const data = await listMessages(paramsOverride ?? listParams);
       setMessages(data);
       if (selectedId) {
         const found = data.find((m) => m.id === selectedId);
@@ -283,14 +281,6 @@ export default function App() {
               Create and manage scheduled messages
             </div>
           </div>
-
-          {/* <button
-            className={btnBase(loading)}
-            onClick={refresh}
-            disabled={loading}
-          >
-            {loading ? "Loading..." : "Refresh"}
-          </button> */}
         </header>
 
         {err ? (
@@ -332,12 +322,29 @@ export default function App() {
               <label className="block">
                 <span className={labelSpan}>Scheduled for (local)</span>
                 <input
-                  className={inputBase}
+                  className={[
+                    inputBase,
+                    "cursor-pointer",
+                    "[&::-webkit-calendar-picker-indicator]:cursor-pointer",
+                  ].join(" ")}
                   type="datetime-local"
                   value={scheduledForLocal}
                   onChange={(e) => setScheduledForLocal(e.target.value)}
+                  onMouseDown={(e) => {
+                    const el = e.currentTarget as HTMLInputElement;
+                    e.preventDefault();
+
+                    if (document.activeElement === el) {
+                      el.blur();
+                      return;
+                    }
+
+                    el.focus();
+                    el.showPicker?.();
+                  }}
                   required
                 />
+
                 <div className="mt-1.5 text-xs text-slate-900">
                   Converted to UTC when sent to the API.
                 </div>
@@ -379,14 +386,14 @@ export default function App() {
             {filtersOpen ? (
               <div
                 id="filters-panel"
-                className="mt-2"
+                className="mt-2 cursor-auto"
                 onClick={(e) => e.stopPropagation()}
               >
                 <div className="space-y-2.5">
                   <label className="block">
                     <span className={labelSpan}>Status</span>
                     <select
-                      className={inputBase}
+                      className={[inputBase, "cursor-pointer"].join(" ")}
                       value={filterStatus}
                       onChange={(e) => setFilterStatus(e.target.value)}
                     >
@@ -411,20 +418,52 @@ export default function App() {
                   <label className="block">
                     <span className={labelSpan}>Scheduled from (ISO UTC)</span>
                     <input
-                      className={inputBase}
+                      className={[
+                        inputBase,
+                        "cursor-pointer",
+                        "[&::-webkit-calendar-picker-indicator]:cursor-pointer",
+                      ].join(" ")}
+                      type="datetime-local"
                       value={filterFrom}
                       onChange={(e) => setFilterFrom(e.target.value)}
-                      placeholder="2025-12-14T00:00:00Z"
+                      onMouseDown={(e) => {
+                        const el = e.currentTarget as HTMLInputElement;
+                        e.preventDefault();
+
+                        if (document.activeElement === el) {
+                          el.blur();
+                          return;
+                        }
+
+                        el.focus();
+                        el.showPicker?.();
+                      }}
                     />
                   </label>
 
                   <label className="block">
                     <span className={labelSpan}>Scheduled to (ISO UTC)</span>
                     <input
-                      className={inputBase}
+                      className={[
+                        inputBase,
+                        "cursor-pointer",
+                        "[&::-webkit-calendar-picker-indicator]:cursor-pointer",
+                      ].join(" ")}
+                      type="datetime-local"
                       value={filterTo}
                       onChange={(e) => setFilterTo(e.target.value)}
-                      placeholder="2025-12-15T00:00:00Z"
+                      onMouseDown={(e) => {
+                        const el = e.currentTarget as HTMLInputElement;
+                        e.preventDefault();
+
+                        if (document.activeElement === el) {
+                          el.blur();
+                          return;
+                        }
+
+                        el.focus();
+                        el.showPicker?.();
+                      }}
                     />
                   </label>
                 </div>
@@ -450,7 +489,7 @@ export default function App() {
                       setFilterPhoneNumber("");
                       setFilterFrom("");
                       setFilterTo("");
-                      setTimeout(refresh, 0);
+                      refresh({});
                     }}
                     disabled={loading}
                     type="button"

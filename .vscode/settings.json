@@ -5,6 +5,7 @@
     "dotenv",
     "imessage",
     "osascript",
+    "tabler",
     "tailwindcss",
     "viewsets"
   ]
