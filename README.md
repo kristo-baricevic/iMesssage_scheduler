@@ -86,11 +86,15 @@ Vite proxies /api to the Django backend so the browser can call the API without 
 
 ### Start Gateway (macOS)
 
-First, cd into the gateway directory:
+The gateway runs on your Mac, so you must install its Python dependencies locally (virtualenv recommended). Navigate to the source folder, create and activate the venv, and then install requirements.txt. Then, you will be able to launch the gateway.
 
     cd apps/gateway
-
+    python3 -m venv .venv
+    source .venv/bin/activate
+    pip install -r requirements.txt
     python3 gateway.py
+
+(Depending on your version of python, your python script may be simply python instead of python3.)
 
 Optional environment variables:
 
