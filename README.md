@@ -108,6 +108,35 @@ Example:
 
 ---
 
+## Changing the throttle limit
+
+The throttle interval is controlled by the `DELIVERY_INTERVAL_SECONDS` environment variable.
+
+Default: `3600` (1 hour)
+
+### Option 1: Set it in your `.env`
+
+Create or edit `apps/api/.env` (or wherever your backend `.env` is loaded from) and add:
+
+    DELIVERY_INTERVAL_SECONDS=60
+
+Then restart the backend stack so the containers reload environment variables:
+
+    cd infrastructure
+    docker compose restart api worker beat
+
+### Option 2: Set it inline when starting Docker
+
+    DELIVERY_INTERVAL_SECONDS=60 docker compose up -d --build
+
+### Verify it is loaded
+
+You can confirm the value inside the API container:
+
+    docker compose exec api python3 manage.py shell -c "from django.conf import settings; print(settings.DELIVERY_INTERVAL_SECONDS)"
+
+---
+
 ## Architecture
 
 ### Components
@@ -371,3 +400,11 @@ The UI updates using Server-Sent Events (SSE), keeping one long-lived HTTP conne
 - The gateway must run on macOS and be signed into iMessage.
 - All queueing, retries, and state live on the backend.
 - The gateway is a stateless sender that reports results back to the server.
+
+---
+
+## Unit Tests
+
+To run all unit tests, navigate to the infrastructure folder to access the docker container for the api, then run this command:
+
+docker compose exec api python3 manage.py test scheduler

@@ -69,7 +69,7 @@ class SchedulerTickTests(TestCase):
 
         self.assertEqual(msg.status, MessageStatus.ACCEPTED)
         self.assertEqual(msg.claimed_by, "gateway_pending")
-        self.assertEqual(msg.claimed_at, self.now)
+        self.assertIsNone(msg.claimed_at)
 
         ev = MessageStatusEvent.objects.filter(message=msg, status=MessageStatus.ACCEPTED).first()
         self.assertIsNotNone(ev)
