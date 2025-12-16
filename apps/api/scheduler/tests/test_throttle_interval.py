@@ -3,8 +3,7 @@ from __future__ import annotations
 from datetime import datetime, timedelta, timezone as dt_timezone
 from unittest.mock import patch
 
-from django.conf import settings
-from django.test import TransactionTestCase, override_settings
+from django.test import TransactionTestCase
 
 from scheduler.models import DeliveryThrottle, MessageStatus, ScheduledMessage
 from scheduler.services import claim_next_message
@@ -101,14 +100,13 @@ class ThrottleIntervalTests(TransactionTestCase):
         self.assertEqual(msg.claimed_by, "mac-1")
         self.assertEqual(msg.claimed_at, fixed_now)
 
-    @override_settings(DELIVERY_INTERVAL_SECONDS=7)
     @patch("scheduler.tasks.timezone.now")
-    def test_scheduler_tick_works_with_settings_value_when_used_as_interval(self, now_mock):
+    def test_scheduler_tick_respects_db_interval_seconds(self, now_mock):
         fixed_now = self.FIXED_NOW
         now_mock.return_value = fixed_now
 
         throttle = self._make_throttle(
-            interval_seconds=settings.DELIVERY_INTERVAL_SECONDS,
+            interval_seconds=7,
             next_send_at=fixed_now - timedelta(seconds=1),
         )
         self._make_due_message(now=fixed_now)

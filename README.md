@@ -119,7 +119,6 @@ The scheduler reads:
 - `interval_seconds` (how long to wait between sends)
 - `next_send_at` (the next time sending is allowed)
 
-Changing `DELIVERY_INTERVAL_SECONDS` does not affect throttling in the current implementation.
 To change throttle, update the database row.
 
 ### Disable throttling (send allowed immediately)
@@ -133,6 +132,8 @@ To change throttle, update the database row.
 ### Verify current throttle values
 
     docker compose exec api python3 manage.py shell -c "from scheduler.models import DeliveryThrottle; print(list(DeliveryThrottle.objects.values()))"
+
+You can also change the throttle time by manually accessing the value in the Django admin panel at localhost:8000/admin.
 
 ---
 
@@ -404,6 +405,16 @@ The UI updates using Server-Sent Events (SSE), keeping one long-lived HTTP conne
 
 ## Unit Tests
 
-To run all unit tests, navigate to the infrastructure folder to access the docker container for the api, then run this command:
+To run all Django unit tests, navigate to the infrastructure folder to access the docker container for the api, then run this command:
 
 docker compose exec api python3 manage.py test scheduler
+
+To run the gateway unit tests, navigate to root and run this command:
+
+PYTHONPATH=apps/gateway python3 -m unittest -v apps/gateway/tests/test_gateway.py
+
+To run an e2e test, navigate to run and run:
+
+python3 apps/gateway/tests/test_e2e_gateway.py
+
+(The e2e test will create messages in your postgres instance that will show up on the UI.)

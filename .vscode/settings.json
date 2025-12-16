@@ -5,6 +5,7 @@
     "dotenv",
     "imessage",
     "osascript",
+    "PYTHONPATH",
     "tabler",
     "tailwindcss",
     "venv",

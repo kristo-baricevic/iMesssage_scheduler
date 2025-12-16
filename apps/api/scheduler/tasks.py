@@ -4,6 +4,7 @@ from celery import shared_task
 from django.db import transaction
 from django.utils import timezone
 from .realtime import publish
+from datetime import datetime, timedelta, timezone as dt_timezone
 
 from .models import (
     DeliveryThrottle,
@@ -57,7 +58,7 @@ def scheduler_tick(limit: int = 50):
         )
 
 
-        throttle.next_send_at = now + timezone.timedelta(seconds=throttle.interval_seconds)
+        throttle.next_send_at = now + timedelta(seconds=throttle.interval_seconds)
         throttle.save(update_fields=["next_send_at"])
 
         return {"ready": True, "id": str(msg.id)}
