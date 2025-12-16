@@ -417,4 +417,4 @@ To run an e2e test, navigate to run and run:
 
 python3 apps/gateway/tests/test_e2e_gateway.py
 
-(The e2e test will create messages in your postgres instance that will show up on the UI.)
+(The e2e test will actually create messages in your postgres instance that will show up on the UI. It will also send the messages, so make sure you are using a number appropriate for testing!)
