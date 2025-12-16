@@ -291,6 +291,20 @@ Gateway send and report:
 
 ---
 
+## Message Statuses
+
+- QUEUED: waiting for scheduled time
+- ACCEPTED: prepared or claimed
+- SENT: send succeeded
+- DELIVERED: delivery confirmed if implemented
+- RECEIVED: receipt confirmed if implemented
+- FAILED: send failed permanently
+- CANCELED: user canceled before send
+
+All transitions are recorded in MessageStatusEvent.
+
+---
+
 ## Dashboard Stats
 
 Endpoint:
@@ -310,19 +324,40 @@ Frontend:
 
 - fetchMessageStatusStats() calls the stats endpoint to populate charts
 
----
+### Real-time message status updates for chart (SSE)
 
-## Message Statuses
+The UI updates using Server-Sent Events (SSE), keeping one long-lived HTTP connection open to the backend
 
-- QUEUED: waiting for scheduled time
-- ACCEPTED: prepared or claimed
-- SENT: send succeeded
-- DELIVERED: delivery confirmed if implemented
-- RECEIVED: receipt confirmed if implemented
-- FAILED: send failed permanently
-- CANCELED: user canceled before send
+#### What happens end-to-end
 
-All transitions are recorded in MessageStatusEvent.
+1. **The browser opens a stream**
+
+   - The frontend calls `new EventSource("/api/stream/messages/")`, sending a request that stays open.
+
+2. **The backend keeps the connection open**
+
+   - It continuously _yields_ small text chunks in SSE format like:
+     - `event: message`
+     - `data: {...json...}`
+   - It also sends occasional `ping` events so proxies and browsers do not drop the connection.
+
+3. **Backend changes publish an event**
+
+   - Whenever something important changes on the backend (message created, canceled, accepted by scheduler/gateway, status reported), the backend publishes a small JSON event into Redis (a pub/sub channel).
+   - Redis acts as the “broadcast pipe”. Anything that publishes to that channel will be seen by the stream process.
+
+4. **The stream forwards Redis events to the browser**
+
+   - The stream endpoint is subscribed to that Redis pub/sub channel.
+   - When it receives a Redis message, it immediately writes it out to the open SSE connection as an SSE `event: message`.
+
+5. **The frontend reacts instantly**
+   - When the browser receives an SSE `message` event, the frontend runs your handler.
+   - Your handler re-fetches:
+     - the messages list (table)
+     - the stats endpoint (chart)
+     - the selected message (detail view), if one is selected
+   - The UI and chart reflect the backend state.
 
 ---
 
