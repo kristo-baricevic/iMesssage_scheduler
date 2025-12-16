@@ -72,7 +72,7 @@ class DeliveryThrottle(models.Model):
 
     max_attempts = models.PositiveSmallIntegerField(default=5)
     retry_base_seconds = models.PositiveIntegerField(default=60)
-    retry_max_seconds = models.PositiveIntegerField(default=21600)  # 6 hours
+    retry_max_seconds = models.PositiveIntegerField(default=21600)
 
     def save(self, *args, **kwargs):
         self.id = 1

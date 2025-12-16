@@ -110,30 +110,29 @@ Example:
 
 ## Changing the throttle limit
 
-The throttle interval is controlled by the `DELIVERY_INTERVAL_SECONDS` environment variable.
+Throttle is first set the first time scheduler_tick runs in tasks.py, when it cannot find DeliveryThrottle(id=1) and creates it with the model’s default values, which then control interval_seconds and the initial next_send_at used for throttling.
 
-Default: `3600` (1 hour)
+Throttle is stored in the database in the `DeliveryThrottle` row (id=1).
 
-### Option 1: Set it in your `.env`
+The scheduler reads:
 
-Create or edit `apps/api/.env` (or wherever your backend `.env` is loaded from) and add:
+- `interval_seconds` (how long to wait between sends)
+- `next_send_at` (the next time sending is allowed)
 
-    DELIVERY_INTERVAL_SECONDS=60
+Changing `DELIVERY_INTERVAL_SECONDS` does not affect throttling in the current implementation.
+To change throttle, update the database row.
 
-Then restart the backend stack so the containers reload environment variables:
+### Disable throttling (send allowed immediately)
 
-    cd infrastructure
-    docker compose restart api worker beat
+    docker compose exec api python3 manage.py shell -c "from django.utils import timezone; from scheduler.models import DeliveryThrottle; DeliveryThrottle.objects.update_or_create(id=1, defaults={'interval_seconds': 0, 'next_send_at': timezone.now()}); print(list(DeliveryThrottle.objects.values()))"
 
-### Option 2: Set it inline when starting Docker
+### Set throttling to 60 seconds (send allowed immediately)
 
-    DELIVERY_INTERVAL_SECONDS=60 docker compose up -d --build
+    docker compose exec api python3 manage.py shell -c "from django.utils import timezone; from scheduler.models import DeliveryThrottle; DeliveryThrottle.objects.update_or_create(id=1, defaults={'interval_seconds': 60, 'next_send_at': timezone.now()}); print(list(DeliveryThrottle.objects.values()))"
 
-### Verify it is loaded
+### Verify current throttle values
 
-You can confirm the value inside the API container:
-
-    docker compose exec api python3 manage.py shell -c "from django.conf import settings; print(settings.DELIVERY_INTERVAL_SECONDS)"
+    docker compose exec api python3 manage.py shell -c "from scheduler.models import DeliveryThrottle; print(list(DeliveryThrottle.objects.values()))"
 
 ---
 
